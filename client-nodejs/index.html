@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Face Detection</title>
+</head>
+<body>
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <br />
+    <input type="text" id="nameField" placeholder="Имя пользователя">
+    <br />
+    <button id="regBtn">Регистрация нового лица</button>
+    <button id="authBtn">Авторизация лица</button>
+    <p id="result">Результат: </p>
+    <script type="module" src="src/main.ts"></script>
+</body>
+</html>

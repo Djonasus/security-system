@@ -1,0 +1,10 @@
+# docker-compose up --build
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    container_name: my-go-app
+    restart: unless-stopped

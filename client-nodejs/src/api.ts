@@ -7,11 +7,11 @@ type MessageDTO = {
     face_vector: number[];  // Используем number[] вместо Float32Array
 }
 
-type ResponseDTO = {
-    error: string;
-    status: string;
-    message: string;
-}
+// type ResponseDTO = {
+//     error: string;
+//     status: string;
+//     message: string;
+// }
 
 export async function RegVector(dto: MessageDTO) {
     try {

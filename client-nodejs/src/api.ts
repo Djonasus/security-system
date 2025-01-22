@@ -4,7 +4,7 @@ const address = "http://localhost:8000/api/";
 
 type MessageDTO = {
     user_name: string;
-    face_vector: Float32Array;
+    face_vector: number[];  // Используем number[] вместо Float32Array
 }
 
 type ResponseDTO = {
@@ -14,10 +14,24 @@ type ResponseDTO = {
 }
 
 export async function RegVector(dto: MessageDTO) {
-    console.log(JSON.stringify(dto));
-    axios.post(address+"register_face", JSON.stringify(dto), {headers: {'Content-Type': 'application/json'}}).then(response => {console.log(response);}).catch(err => {console.log(err)});
+    try {
+        const response = await axios.post(address + "register_face", dto, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        console.log(response.data);
+    } catch (err: Error | any) {
+        console.error("Ошибка при регистрации:", err.response?.data || err.message);
+    }
 }
 
-export async function VerifyVector(dto: MessageDTO) : Promise<Boolean> {
-    return true
+export async function VerifyVector(dto: MessageDTO): Promise<boolean> {
+    try {
+        const response = await axios.post(address + "verify_face", dto, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return response.data.status === "success";  // Предположим, что сервер возвращает статус
+    } catch (err: Error | any) {
+        console.error("Ошибка при проверке:", err.response?.data || err.message);
+        return false;
+    }
 }

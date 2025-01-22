@@ -81,24 +81,28 @@ async function main() {
     RegButton.addEventListener('click', async () => {
         const userName = NameInput.value;
         const faceVector = await captureAndDetectFace();
-
+    
         if (faceVector) {
+            // Преобразуем Float32Array в number[]
+            const faceVectorArray = Array.from(faceVector);
             // Загрузка вектора лица на сервер
-            await RegVector({user_name: userName, face_vector: faceVector});
+            await RegVector({ user_name: userName, face_vector: faceVectorArray });
             ResultField.textContent = `Вектор лица "${userName}" загружен`;
         } else {
             ResultField.textContent = 'Лицо не обнаружено.';
         }
     });
-
+    
     AuthButton.addEventListener('click', async () => {
         const userName = NameInput.value;
         const faceVector = await captureAndDetectFace();
-
+    
         if (faceVector) {
+            // Преобразуем Float32Array в number[]
+            const faceVectorArray = Array.from(faceVector);
             // Проверка вектора лица на сервере
-            const isMatch = await VerifyVector({user_name: userName, face_vector: faceVector});
-
+            const isMatch = await VerifyVector({ user_name: userName, face_vector: faceVectorArray });
+    
             if (isMatch) {
                 ResultField.textContent = `Вы успешно авторизованы как "${userName}"`;
             } else {

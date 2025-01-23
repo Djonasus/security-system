@@ -18,7 +18,8 @@
     "electron": "^34.0.0",
     "globals": "^15.14.0",
     "typescript": "~5.6.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "electron-builder": "^25.1.8"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -26,5 +27,25 @@
     "cross-env": "^7.0.3",
     "face-api.js": "^0.22.2",
     "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.vasilenko.securityclient",
+    "productName": "SecurityClient",
+    "copyright": "Copyright © 2024 Vasilenko",
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist_electron"
+    }
   }
 }

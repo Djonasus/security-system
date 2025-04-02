@@ -10,8 +10,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   })
 
-// const { contextBridge, ipcRenderer } = require('electron');
-
+const { contextBridge, ipcRenderer } = require('electron');
+const path = require("path");
 // contextBridge.exposeInMainWorld('io', {
 //     openFolderDialog: () => ipcRenderer.invoke('openFolderDialog'),
 //     newFile: (filePath, fileName) => ipcRenderer.invoke('newFile', filePath, fileName),
@@ -19,6 +19,11 @@ window.addEventListener('DOMContentLoaded', () => {
 //     deleteFile: (filePath) => ipcRenderer.invoke('deleteFile', filePath),
 //     copyFolder: (sourcePath, destinationPath) => ipcRenderer.invoke('copyFolder', sourcePath, destinationPath),
 // });
+
+contextBridge.exposeInMainWorld('nodejs', {
+  path: () => path,
+  dirname: () => __dirname,
+})
 
 // contextBridge.exposeInMainWorld('net', {
 //     downloadFile: (destination, fileUrl) => ipcRenderer.invoke('downloadFile', destination, fileUrl),

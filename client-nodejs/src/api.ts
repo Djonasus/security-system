@@ -1,18 +1,17 @@
+// В этом файле мы реализуем логику отправки данных на сервер
+
+
 import axios from "axios";
 
 const address = "http://localhost:8000/api/";
 
+// Объект, в который будут завернуты дескрипторы и имя пользователя
 type MessageDTO = {
     user_name: string;
     face_vector: number[];  // Используем number[] вместо Float32Array
 }
 
-// type ResponseDTO = {
-//     error: string;
-//     status: string;
-//     message: string;
-// }
-
+// Функция регистрации нового пользователя
 export async function RegVector(dto: MessageDTO) {
     try {
         const response = await axios.post(address + "register_face", dto, {
@@ -24,8 +23,10 @@ export async function RegVector(dto: MessageDTO) {
     }
 }
 
+// Функция проверки авторизации пользователя
 export async function VerifyVector(dto: MessageDTO): Promise<boolean> {
     try {
+        // Отправляем данные на сервер
         const response = await axios.post(address + "verify_face", dto, {
             headers: { 'Content-Type': 'application/json' }
         });

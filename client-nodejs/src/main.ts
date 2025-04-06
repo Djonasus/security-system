@@ -134,15 +134,20 @@ async function main() {
     });
     
     AuthButton.addEventListener('click', async () => {
-        DebugLabel.textContent = "";
+        DebugLabel.textContent = "Дескрипторы: \n";
+        LandmarksLabel.textContent = "Координаты: \n";
         const userName = NameInput.value;
         const faceVector = await captureAndDetectFace();
-    
+        
         if (faceVector.descriptors) {
             // Преобразуем Float32Array в number[]
             const faceVectorArray = Array.from(faceVector.descriptors as Float32Array);
-            DebugLabel.textContent = faceVectorArray.toString();
-            LandmarksLabel.textContent = (faceVector.positions as faceapi.Point[]).toString();
+            DebugLabel.textContent += faceVectorArray.toString();
+            // LandmarksLabel.textContent = (faceVector.positions as faceapi.Point[]).map(p => p.x + ", "+p.y+"\n");
+            
+            (faceVector.positions as faceapi.Point[]).forEach(p => {
+                LandmarksLabel.textContent += Math.round(p.x) + ", "+Math.round(p.y)+"\n"
+            });
             // Проверка вектора лица на сервере
             const isMatch = await VerifyVector({ user_name: userName, face_vector: faceVectorArray });
     

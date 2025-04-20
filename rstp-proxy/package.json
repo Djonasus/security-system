@@ -1,0 +1,20 @@
+{
+  "name": "rstp-proxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "discover": "node src/discover.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-ws": "^5.0.2",
+    "node-onvif": "^0.1.7",
+    "rtsp-relay": "^1.9.0"
+  }
+}

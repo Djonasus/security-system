@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Live Stream</h1>
+    <script src="https://cdn.jsdelivr.net/npm/rtsp-relay@1.9.0/browser/index.js"></script>
+    <canvas id="overlay" width="1200" height="720" style="position:relative;"></canvas>
+
+    <script>
+    // создаём «скрытые» канвасы для каждого потока
+    const visOff = document.createElement('canvas');
+    const thermOff = document.createElement('canvas');
+
+    const visPlayer  = loadPlayer({ url: 'ws://localhost:3000/major', canvas: visOff });
+    const thermPlayer= loadPlayer({ url: 'ws://localhost:3000/minor', canvas: thermOff });
+
+    const overlay = document.getElementById('overlay');
+    const ctx     = overlay.getContext('2d');
+
+    function loop() {
+        // масштабируем и компонуем оба потока
+        ctx.clearRect(0,0,overlay.width,overlay.height);
+        ctx.drawImage(visOff,   0,0, overlay.width, overlay.height);
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(thermOff, 0,0, overlay.width, overlay.height);
+        ctx.globalAlpha = 1.0;
+        requestAnimationFrame(loop);
+    }
+    loop();
+    </script>
+
+</body>
+</html>

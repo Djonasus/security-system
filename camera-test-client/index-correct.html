@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Два Canvas рядом</title>
+  <style>
+    /* Контейнер-флекс для расположения по горизонтали */
+    #canvas-row {
+      display: flex;
+      gap: 10px; /* отступ между холстами */
+      justify-content: center; /* по центру страницы */
+      align-items: center;     /* по вертикали одного уровня */
+    }
+    /* Задаём фиксированный размер каждого canvas */
+    #canvas-row canvas {
+      width: 640px;
+      height: 360px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Live Stream</h1>
+  <div id="canvas-row">
+    <!-- Видимый поток -->
+    <canvas id="visCanvas" width="640" height="360"></canvas>
+    <!-- Тепловой поток -->
+    <canvas id="thermCanvas" width="640" height="360"></canvas>
+  </div>
+
+  <!-- Плеер из rtsp-relay -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/rtsp-relay@1.9.0/browser/index.js"></script> -->
+  <script src="./jsmpeg.js"></script>
+  <script>
+    // Подключаем оба потока к своим canvas
+    loadPlayer({
+      url: 'ws://localhost:3000/major',
+      canvas: document.getElementById('visCanvas')
+    });
+
+    loadPlayer({
+      url: 'ws://localhost:3000/minor',
+      canvas: document.getElementById('thermCanvas')
+    });
+  </script>
+</body>
+</html>

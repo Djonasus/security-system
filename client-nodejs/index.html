@@ -1,29 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webcam Face Detection</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Face Detection</title>
+  <style>
+    /* Контейнер-флекс для расположения по горизонтали */
+    .canvas-row {
+      display: flex;
+      gap: 10px; /* отступ между холстами */
+      /* justify-content: center; по центру страницы */
+      align-items: center;     /* по вертикали одного уровня */
+    }
+    /* Задаём фиксированный размер каждого canvas */
+    .canvas-row canvas {
+      width: 640px;
+      height: 360px;
+      border: 1px solid #ccc;
+    }
+
+    .padding {
+      padding: 20px 0;
+    }
+  </style>
 </head>
 <body>
-    <div style="display: flex; gap: 10px;">
-        <div style="position: relative;">
-            <video id="webcam" autoplay playsinline style="position: absolute; left: 0; top: 0;"></video>
-            <canvas id="canvas" style="position: absolute; left: 0; top: 0; pointer-events: none;"></canvas>
-        </div>
-        <div style="margin-left: 650px;">
-            <p style="width: 350px; height: 250px; word-wrap: break-word; white-space: pre-wrap;" id="debugInfo"></p>
-        </div>
-    </div>
-    <div style="margin-top: 200px;">
-        <br />
-        <input type="text" id="nameField" placeholder="Имя пользователя">
-        <br />
-        <button id="regBtn">Регистрация нового лица</button>
-        <button id="authBtn">Авторизация лица</button>
-    <p id="result">Результат: </p>
-    <p style="width: 350px; height: 250px; word-wrap: break-word; white-space: pre-wrap;" id="landmarksInfo"></p>
-    </div>
+    <!-- Основной скрипт -->
     <script type="module" src="src/main.ts"></script>
+
+    <!-- Скрипты для JSMpeg -->
+    <script src="./public/jsmpeg.min.js"></script>
+    <script src="./public/jsmpeg-run.js"></script>
+
+  <h1>Живой стрим</h1>
+  <div class="canvas-row">
+    <!-- Видимый поток -->
+    <canvas id="visCanvas" width="640" height="360"></canvas>
+    <!-- Тепловой поток -->
+    <canvas id="thermCanvas" width="640" height="360"></canvas>
+  </div>
+  <div class="padding canvas-row">
+    <form name="operation_form">
+      <select name="operation_type">
+        <option value="identify">Идентификация</option>
+        <option value="registration">Регистрация</option>
+      </select>
+      <input name="username" type="text" placeholder="имя пользователя" />
+    </form>
+    <button id="operateButton">Вперед</button>
+  </div>
+  <h1>Результат лицевых точек</h1>
+  <div class="canvas-row">
+    <canvas id="visCanvas__result" width="640" height="360"></canvas>
+  </div>
+
+  <script>
+    // Подключаем оба потока к своим canvas
+    loadPlayer({
+      url: 'ws://localhost:4001/major', // URL для основного потока
+      canvas: document.getElementById('visCanvas'),
+      disableGl: true,
+      // Дополнительные опции, если нужны
+    });
+
+    loadPlayer({
+      url: 'ws://localhost:4001/minor', // URL для теплового потока
+      canvas: document.getElementById('thermCanvas'),
+      disableGl: true,
+      // Дополнительные опции, если нужны
+    });
+  </script>
 </body>
 </html>

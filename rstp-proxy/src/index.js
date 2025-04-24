@@ -19,9 +19,14 @@ const RTSP_URL = process.env.RTSP_URL || 'rtsp://192.168.1.18:554/1/h264';
 
 function createProxy(mode) {
     return proxy({
-        url: RTSP_URL+mode,
+        url: RTSP_URL + mode,
         transport: 'tcp',  // Use TCP for more reliable delivery (optional)
-        verbose: true,      
+        verbose: true,     // Enables logging
+        additionalOptions: {
+            rtsp: {
+                readableHighWaterMark: 1024 * 1024, // Увеличиваем буфер для чтения
+            }
+        }
     })
 }
 
@@ -37,5 +42,5 @@ app.ws('/major', createProxy("major"));
 app.ws('/minor', createProxy("minor"));
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4001;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

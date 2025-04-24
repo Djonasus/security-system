@@ -35,12 +35,12 @@
   <script>
     // Подключаем оба потока к своим canvas
     loadPlayer({
-      url: 'ws://localhost:3000/major',
+      url: 'ws://localhost:4000/major',
       canvas: document.getElementById('visCanvas')
     });
 
     loadPlayer({
-      url: 'ws://localhost:3000/minor',
+      url: 'ws://localhost:4000/minor',
       canvas: document.getElementById('thermCanvas')
     });
   </script>

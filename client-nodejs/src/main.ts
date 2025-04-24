@@ -1,116 +1,164 @@
 import * as faceapi from 'face-api.js';
-import { RegVector, VerifyVector } from './api';
 
-// Обертка результата обнаружения
-type detectorResult = {
-    positions: faceapi.Point[] | undefined,
-    descriptors: Float32Array | undefined
+// --- Конфигурация --- 
+const MODEL_URL = '/weights'; // Путь к папке с моделями face-api.js
+const detectionInterval = 100; // Интервал обнаружения лиц (в миллисекундах)
+
+// --- Получение элементов DOM ---
+const videoCanvas = document.getElementById('visCanvas') as HTMLCanvasElement;
+const resultCanvas = document.getElementById('visCanvas__result') as HTMLCanvasElement;
+const operationForm = document.forms.namedItem('operation_form') as HTMLFormElement;
+const operateButton = document.getElementById('operateButton') as HTMLButtonElement;
+
+if (!videoCanvas || !resultCanvas || !operationForm || !operateButton) {
+  console.error('Не удалось найти необходимые элементы DOM!');
+  alert('Ошибка: не найдены необходимые элементы интерфейса.');
+  throw new Error('Критическая ошибка: элементы DOM не найдены');
 }
 
-// Элементы DOM
-const video = document.getElementById('webcam') as HTMLVideoElement;
-const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-const RegButton = document.getElementById('regBtn') as HTMLButtonElement;
-const AuthButton = document.getElementById('authBtn') as HTMLButtonElement;
-const NameInput = document.getElementById('nameField') as HTMLInputElement;
-const ResultField = document.getElementById('result') as HTMLParagraphElement;
-const DebugLabel = document.getElementById('debugInfo') as HTMLParagraphElement;
-const LandmarksLabel = document.getElementById('landmarksInfo') as HTMLParagraphElement;
+// Инициализация размеров canvas
+videoCanvas.width = 640;
+videoCanvas.height = 480;
+resultCanvas.width = videoCanvas.width;
+resultCanvas.height = videoCanvas.height;
 
-// Загрузка моделей
+// --- Инициализация face-api.js ---
 async function loadModels() {
-    await faceapi.nets.tinyFaceDetector.loadFromUri(`/weights`);
-    await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/weights');
-    await faceapi.nets.faceRecognitionNet.loadFromUri('/weights');
+  console.log('Начинаем загрузку моделей face-api.js...');
+  try {
+    console.log('Загрузка TinyFaceDetector...');
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    console.log('TinyFaceDetector загружен успешно');
+
+    console.log('Загрузка FaceLandmark68TinyNet...');
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+    console.log('FaceLandmark68TinyNet загружен успешно');
+
+    console.log('Загрузка FaceRecognitionNet...');
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    console.log('FaceRecognitionNet загружен успешно');
+
+    console.log('Все модели успешно загружены!');
+    startFaceDetection();
+  } catch (error) {
+    console.error('Ошибка при загрузке моделей:', error);
+    alert('Не удалось загрузить необходимые модели. Проверьте консоль для деталей.');
+  }
 }
 
-// Запуск веб-камеры
-async function startWebcam() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-    } catch (error) {
-        console.error('Ошибка доступа к камере:', error);
-    }
-}
+// --- Обнаружение лиц ---
+async function detectFaces() {
+  if (!videoCanvas || !resultCanvas) {
+    console.log('detectFaces: videoCanvas или resultCanvas не определены');
+    return;
+  }
+  console.log('detectFaces: вызов начат');
+  console.log('videoCanvas.width/height:', videoCanvas.width, videoCanvas.height);
+  console.log('resultCanvas.width/height:', resultCanvas.width, resultCanvas.height);
+  const ctx_ok = resultCanvas.getContext('2d');
+  if (!ctx_ok) {
+    console.log('detectFaces: не удалось получить 2D контекст resultCanvas');
+  } else {
+    console.log('detectFaces: 2D контекст resultCanvas получен');
+  }
+  const detections = await faceapi
+    .detectAllFaces(videoCanvas, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks(true)
+    .withFaceDescriptors();
+  console.log('detectFaces: detections.length =', detections.length);
 
-// Функция обнаружения опорных точек и составления дескриптора
-async function captureAndDetectFace(): Promise<detectorResult> {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+  // Подгоняем размер resultCanvas под videoCanvas
+  const displaySize = { width: videoCanvas.width, height: videoCanvas.height };
+  faceapi.matchDimensions(resultCanvas, displaySize);
 
-    const context = canvas.getContext('2d');
-    if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // Очищаем предыдущие результаты
+  const ctx = resultCanvas.getContext('2d');
+  if (ctx) {
+      ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
+  }
 
-        // Детекция лица и landmarks
-        const detections = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true).withFaceDescriptor();
+  // Рисуем результаты
+  if (detections.length > 0) {
+    const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
-        if (detections) {
-            // Отрисовка landmarks
-            faceapi.draw.drawFaceLandmarks(canvas, detections.landmarks);
-            return {descriptors: detections.descriptor, positions: detections.landmarks.positions};
-        } else {
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            return {descriptors: undefined, positions: undefined};
-        }
-    }
-    return {descriptors: undefined, positions: undefined};
-}
+    // Рисуем рамки обнаружения
+    faceapi.draw.drawDetections(resultCanvas, resizedDetections);
+    // Рисуем точки лица
+    faceapi.draw.drawFaceLandmarks(resultCanvas, resizedDetections);
 
-// Инициализация. Основной поток программы
-async function main() {
-    await loadModels();
-    await startWebcam();
-
-    // Обработчик нажатия на кнопку "Регистрация"
-    RegButton.addEventListener('click', async () => {
-        DebugLabel.textContent = "";
-        const userName = NameInput.value;
-        const faceVector = await captureAndDetectFace();
-    
-        if (faceVector) {
-            // Преобразуем Float32Array в number[]
-            const faceVectorArray = Array.from(faceVector.descriptors as Float32Array);
-            // Загрузка вектора лица на сервер
-            await RegVector({ user_name: userName, face_vector: (faceVectorArray) });
-            ResultField.textContent = `Вектор лица "${userName}" загружен`;
-
-            
-        } else {
-            ResultField.textContent = 'Лицо не обнаружено.';
-        }
+    // Добавляем информацию о количестве обнаруженных лиц
+    resizedDetections.forEach(result => {
+      const box = result.detection.box;
+      const text = [`Лицо обнаружено`];
+      new faceapi.draw.DrawTextField(text, box.bottomLeft).draw(resultCanvas);
     });
-    
-    // Обработчик нажатия на кнопку "Авторизация"
-    AuthButton.addEventListener('click', async () => {
-        DebugLabel.textContent = "Дескрипторы: \n";
-        LandmarksLabel.textContent = "Координаты: \n";
-        const userName = NameInput.value;
-        const faceVector = await captureAndDetectFace();
-        
-        if (faceVector.descriptors) {
-            // Преобразуем Float32Array в number[]
-            const faceVectorArray = Array.from(faceVector.descriptors as Float32Array);
-            DebugLabel.textContent += faceVectorArray.toString();
-            
-            (faceVector.positions as faceapi.Point[]).forEach(p => {
-                LandmarksLabel.textContent += Math.round(p.x) + ", "+Math.round(p.y)+"\n"
-            });
-
-            // Проверка вектора лица на сервере (Ассинхронная операция, которая отправляет вектор дескрипторов на сервер)
-            const isMatch = await VerifyVector({ user_name: userName, face_vector: faceVectorArray });
-    
-            if (isMatch) {
-                ResultField.textContent = `Вы успешно авторизованы как "${userName}"`;
-            } else {
-                ResultField.textContent = 'Неверный вектор лица.';
-            }
-        } else {
-            ResultField.textContent = 'Лицо не обнаружено.';
-        }
-    });
+  }
 }
 
-// Запуск
-main();
+// --- Запуск обнаружения ---
+function startFaceDetection() {
+  console.log('Запуск обнаружения лиц...');
+  if (!videoCanvas || !resultCanvas) {
+    console.error('Canvas элементы не инициализированы!');
+    return;
+  }
+
+  // Проверяем, что контексты canvas доступны
+  const videoCtx = videoCanvas.getContext('2d');
+  const resultCtx = resultCanvas.getContext('2d');
+  
+  if (!videoCtx || !resultCtx) {
+    console.error('Не удалось получить 2D контекст для canvas элементов!');
+    return;
+  }
+
+  // Добавляем небольшую задержку перед запуском детектора
+  setTimeout(() => {
+    console.log('Начинаем обнаружение лиц...');
+    setInterval(detectFaces, detectionInterval);
+  }, 1000); // Задержка 1 секунда
+}
+
+// --- Обработка действий пользователя (Регистрация/Идентификация) ---
+operateButton?.addEventListener('click', async () => {
+    const operationType = (operationForm.elements.namedItem('operation_type') as HTMLSelectElement).value;
+    const username = (operationForm.elements.namedItem('username') as HTMLInputElement).value;
+
+    if (!username && operationType === 'registration') {
+        alert('Пожалуйста, введите имя пользователя для регистрации.');
+        return;
+    }
+
+    console.log(`Выполняется операция: ${operationType}, Пользователь: ${username || 'N/A'}`);
+
+    // Получаем текущие дескрипторы лиц с видео
+    const detections = await faceapi
+        .detectAllFaces(videoCanvas, new faceapi.SsdMobilenetv1Options())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+    if (detections.length === 0) {
+        alert('Лица не найдены на видео. Попробуйте снова.');
+        return;
+    }
+
+    // TODO: Реализовать логику регистрации и идентификации
+    // - Регистрация: Сохранить дескриптор(ы) лица с именем пользователя (например, в localStorage или на сервере)
+    // - Идентификация: Сравнить текущие дескрипторы с сохраненными и найти совпадение
+
+    alert(`Операция '${operationType}' для пользователя '${username || 'идентификация'}' еще не реализована.`);
+
+});
+
+// --- Старт --- 
+document.addEventListener('DOMContentLoaded', () => {
+  // Ждем инициализации JSMpeg плеера
+  const checkVideoReady = setInterval(() => {
+    const videoCtx = videoCanvas.getContext('2d');
+    if (videoCtx) {
+      clearInterval(checkVideoReady);
+      console.log('Видеопоток инициализирован, запускаем face-api.js...');
+      loadModels();
+    }
+  }, 100); // Проверяем каждые 100мс
+});

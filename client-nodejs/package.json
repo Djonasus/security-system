@@ -26,7 +26,12 @@
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "face-api.js": "^0.22.2",
-    "wait-on": "^8.0.1"
+    "wait-on": "^8.0.1",
+
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-ws": "^5.0.2",
+    "rtsp-relay": "^1.9.0"
   },
   "build": {
     "appId": "com.vasilenko.securityclient",

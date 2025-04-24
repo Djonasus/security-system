@@ -49,5 +49,27 @@ app.on('window-all-closed', () => {
   }
 });
 
-// IOHandler();
-// NetHandler();
+/////////////////////// EXPRESS SERVER ///////////////////////////
+// const express = require('express');
+// const expressWs = require('express-ws');
+
+// const app = express();
+// expressWs(app);
+
+// const { proxy, scriptUrl } = require('rtsp-relay')(app);
+
+// const RTSP_URL = 'rtsp://192.168.1.18:554/1/h264';
+
+// function createProxy(mode) {
+//     return proxy({
+//         url: RTSP_URL+mode,
+//         transport: 'tcp',
+//         verbose: true,      
+//     })
+// }
+
+// app.ws('/major', createProxy("major"));
+// app.ws('/minor', createProxy("minor"));
+
+// const PORT = process.env.PORT || 4000;
+// app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

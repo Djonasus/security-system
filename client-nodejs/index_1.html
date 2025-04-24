@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Face Detection</title>
+</head>
+<body>
+    <div style="display: flex; gap: 10px;">
+        <div style="position: relative;">
+            <video id="webcam" autoplay playsinline style="position: absolute; left: 0; top: 0;"></video>
+            <canvas id="canvas" style="position: absolute; left: 0; top: 0; pointer-events: none;"></canvas>
+        </div>
+        <div style="margin-left: 650px;">
+            <p style="width: 350px; height: 250px; word-wrap: break-word; white-space: pre-wrap;" id="debugInfo"></p>
+        </div>
+    </div>
+    <div style="margin-top: 200px;">
+        <br />
+        <input type="text" id="nameField" placeholder="Имя пользователя">
+        <br />
+        <button id="regBtn">Регистрация нового лица</button>
+        <button id="authBtn">Идентификация лица</button>
+    <p id="result">Результат: </p>
+    <p style="width: 350px; height: 250px; word-wrap: break-word; white-space: pre-wrap;" id="landmarksInfo"></p>
+    </div>
+    <script type="module" src="src/main.ts"></script>
+</body>
+</html>

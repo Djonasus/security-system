@@ -10,13 +10,24 @@
       display: flex;
       gap: 10px; /* отступ между холстами */
       /* justify-content: center; по центру страницы */
-      align-items: center;     /* по вертикали одного уровня */
+      /* align-items: center;     по вертикали одного уровня */
     }
     /* Задаём фиксированный размер каждого canvas */
     .canvas-row canvas {
       width: 640px;
       height: 360px;
       border: 1px solid #ccc;
+    }
+
+    .canvas__label {
+      width: 640px;
+      /* height: 360px; */
+      /* border: 1px solid #ccc; */
+    }
+
+    .canvas__label p {
+      text-wrap: wrap;
+      text-wrap-mode: wrap;/
     }
 
     .padding {
@@ -29,7 +40,6 @@
     <script type="module" src="src/main.ts"></script>
 
     <!-- Скрипты для JSMpeg -->
-    <script src="./public/jsmpeg.min.js"></script>
     <script src="./public/jsmpeg-run.js"></script>
 
   <h1>Живой стрим</h1>
@@ -52,6 +62,12 @@
   <h1>Результат лицевых точек</h1>
   <div class="canvas-row">
     <canvas id="visCanvas__result" width="640" height="360"></canvas>
+    <div class="canvas__label">
+      <p id="landmarkPositions"></p>
+    </div>
+    <div class="canvas__label">
+      <p id="descriptors"></p>
+    </div>
   </div>
 
   <script>
@@ -60,14 +76,20 @@
       url: 'ws://localhost:4001/major', // URL для основного потока
       canvas: document.getElementById('visCanvas'),
       disableGl: true,
-      // Дополнительные опции, если нужны
+      onRenderFrame: () => {
+        // Обновляем временную метку для видео
+        window.updateTimestamp?.(true);
+      }
     });
 
     loadPlayer({
       url: 'ws://localhost:4001/minor', // URL для теплового потока
       canvas: document.getElementById('thermCanvas'),
       disableGl: true,
-      // Дополнительные опции, если нужны
+      onRenderFrame: () => {
+        // Обновляем временную метку для теплового потока
+        window.updateTimestamp?.(false);
+      }
     });
   </script>
 </body>

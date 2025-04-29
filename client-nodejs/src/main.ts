@@ -1,15 +1,18 @@
 import * as faceapi from 'face-api.js';
 import { detectorResult } from './models/detector-result';
+import { RegVector, VerifyVector } from './api';
 
 // --- Получение элементов DOM ---
 const videoCanvas = document.getElementById('visCanvas') as HTMLCanvasElement;
 const resultCanvas = document.getElementById('visCanvas__result') as HTMLCanvasElement;
+const thermResultCanvas = document.getElementById('thermCanvas__result') as HTMLCanvasElement;
 const thermCanvas = document.getElementById('thermCanvas') as HTMLCanvasElement; // Добавляем тепловой canvas
 const operationForm = document.forms.namedItem('operation_form') as HTMLFormElement;
 const operateButton = document.getElementById('operateButton') as HTMLButtonElement;
 
 const landmarksLabel = document.getElementById('landmarkPositions') as HTMLLabelElement;
 const descriptorsLabel = document.getElementById('descriptors') as HTMLLabelElement;
+const resultLabel = document.getElementById('result-label') as HTMLLabelElement;
 
 if (!videoCanvas || !resultCanvas || !thermCanvas || !operationForm || !operateButton) { // Проверяем thermCanvas
   console.error('Не удалось найти необходимые элементы DOM!');
@@ -20,8 +23,10 @@ if (!videoCanvas || !resultCanvas || !thermCanvas || !operationForm || !operateB
 // Инициализация размеров canvas
 videoCanvas.width = 640;
 videoCanvas.height = 480;
-resultCanvas.width = videoCanvas.width;
-resultCanvas.height = videoCanvas.height;
+// resultCanvas.width = 640;
+// resultCanvas.height = 480;
+// thermResultCanvas.width = 640;
+// thermResultCanvas.height = 480;
 // Предполагаем, что тепловой canvas имеет те же размеры
 if (thermCanvas) {
     thermCanvas.width = videoCanvas.width;
@@ -43,7 +48,7 @@ async function loadModels() {
   }
 }
 
-// --- Рисование лиц ---
+// --- Рисование лица на resultCanvas---
 async function drawFace(detection: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{detection: faceapi.FaceDetection}, faceapi.FaceLandmarks68>>) {
   if (!videoCanvas || !resultCanvas) {
     console.log('detectFaces: videoCanvas или resultCanvas не определены');
@@ -51,19 +56,26 @@ async function drawFace(detection: faceapi.WithFaceDescriptor<faceapi.WithFaceLa
   }
   // Копируем изображение с videoCanvas на resultCanvas
   const ctx = resultCanvas.getContext('2d');
-  if (ctx) {
-    ctx.drawImage(thermCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
+  const ctx2 = thermResultCanvas.getContext('2d');
+  if (ctx && ctx2) {
+    // ctx.drawImage(thermCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
+    ctx.drawImage(videoCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
+    ctx2.drawImage(thermCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
   }
 
   if (detection) {
     // Корректируем координаты под размер resultCanvas
     const displaySize = { width: resultCanvas.width, height: resultCanvas.height };
     const resizedDetections = faceapi.resizeResults(detection, displaySize);
+
     faceapi.draw.drawFaceLandmarks(resultCanvas, resizedDetections);
+    faceapi.draw.drawFaceLandmarks(thermResultCanvas, resizedDetections);
 
     const box = resizedDetections.detection.box;
     const text = [`Лицо обнаружено`];
     new faceapi.draw.DrawTextField(text, box.bottomLeft).draw(resultCanvas);
+
+    
   }
 }
 
@@ -107,8 +119,8 @@ async function checkLiveness(detection: faceapi.WithFaceDescriptor<faceapi.WithF
 
     // Масштабируем и корректируем координаты box под размер теплового изображения
     // Предполагаем, что тепловизор может быть смещен относительно оптической камеры
-    const offsetX = 20; // Уменьшаем смещение по X
-    const offsetY = 10; // Уменьшаем смещение по Y
+    const offsetX = 110; // Уменьшаем смещение по X
+    const offsetY = 50; // Уменьшаем смещение по Y
     
     // Коэффициенты масштабирования (могут отличаться из-за разных объективов камер)
     const scaleX = 1.0 * (thermCanvas.width / videoCanvas.width); // Увеличиваем масштаб для лучшего покрытия
@@ -245,7 +257,7 @@ async function checkLiveness(detection: faceapi.WithFaceDescriptor<faceapi.WithF
                 `- Коэффициент равномерности: ${tempVariation.toFixed(2)}`);
 
     // Визуализация тепловой карты
-    const heatmapCtx = thermCanvas.getContext('2d');
+    const heatmapCtx = thermResultCanvas.getContext('2d');
     if (heatmapCtx) {
         // Рисуем сетку зон анализа
         heatmapCtx.strokeStyle = 'red';
@@ -290,8 +302,6 @@ async function checkLiveness(detection: faceapi.WithFaceDescriptor<faceapi.WithF
                    eyebrowTempDiff < eyebrowDiffThreshold && // Температура бровей примерно одинаковая
                    noseToBrowDiff > noseBrowDiffThreshold; // Значительная разница между носом и бровями
 
-    // const isLive = !isUniform;
-
     if (isLive) {
         console.log('Проверка на спуфинг: пройдена (текстура соответствует живому лицу).');
     } else {
@@ -306,6 +316,7 @@ async function checkLiveness(detection: faceapi.WithFaceDescriptor<faceapi.WithF
     return isLive;
 }
 
+// --- Обработка ввода ---
 async function perfomInput() {
     const operationType = (operationForm.elements.namedItem('operation_type') as HTMLSelectElement).value;
     const username = (operationForm.elements.namedItem('username') as HTMLInputElement).value;
@@ -328,29 +339,18 @@ async function perfomInput() {
         return;
     }
 
-    // Рисуем лицо только если проверка пройдена
+    // Рисуем лицо
     drawFace(detection);
 
     // --- Проверка на спуфинг --- 
     const isLive = await checkLiveness(detection); // Передаем весь объект detection
     if (!isLive) {
         alert('Обнаружена попытка спуфинга! Операция отменена.');
-        // Очищаем resultCanvas
-        const ctx = resultCanvas.getContext('2d');
-        if (ctx) {
-            ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
-        }
-        landmarksLabel.textContent = "Позиции лицевых точек: ";
-        descriptorsLabel.textContent = "Дескрипторы: ";
+        landmarksLabel.textContent = "";
+        descriptorsLabel.textContent = "";
         return;
     }
     // --- Конец проверки на спуфинг ---
-
-    
-
-    // TODO: Реализовать логику регистрации и идентификации
-    // - Регистрация: Сохранить дескриптор(ы) лица с именем пользователя (например, в localStorage или на сервере)
-    // - Идентификация: Сравнить текущие дескрипторы с сохраненными и найти совпадение
 
     const data: detectorResult = {
         positions: detection.landmarks.positions,
@@ -360,6 +360,24 @@ async function perfomInput() {
     landmarksLabel.textContent = "Позиции лицевых точек: " + JSON.stringify(data.positions);
     descriptorsLabel.textContent = "Дескрипторы: " + JSON.stringify(data.descriptors, null, 2);
 
+    
+    if (operationType === 'registration') {
+        console.log("Регистрация нового лица");
+        // Регистрация
+        const array = Array.from(data.descriptors as Float32Array);
+        await RegVector({ user_name: username.trim(), face_vector: array});
+        resultLabel.textContent = "Регистрация завершена успешно.";
+    } else if (operationType === 'identify') {
+        // Идентификация
+        console.log("Идентификация лица");
+        const array = Array.from(data.descriptors as Float32Array);
+        const result = await VerifyVector({ user_name: username.trim(), face_vector: array});
+        if (result) {
+            resultLabel.textContent = `Вы успешно вошли как "${username}"`;
+        } else {
+            resultLabel.textContent = 'Неверный вектор лица.';
+        }
+    }
 }
 
 // Основная программа

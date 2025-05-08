@@ -15,11 +15,15 @@ expressWs(app);
 const { proxy, scriptUrl } = require('rtsp-relay')(app);
 
 // RTSP source URL (can be parameterized or read from env)
-const RTSP_URL = process.env.RTSP_URL || 'rtsp://192.168.1.18:554/1/h264';
+const RTSP_URL = process.env.RTSP_URL || '192.168.1.101';
+
+const login = 'admin';
+const password = 'A96IW2Ud';
+const port = "554";
 
 function createProxy(mode) {
     return proxy({
-        url: RTSP_URL + mode,
+        url: `rtsp://${login}:${password}@${RTSP_URL}:${port}/${mode}`,
         transport: 'tcp',  // Use TCP for more reliable delivery (optional)
         verbose: true,     // Enables logging
         additionalOptions: {
@@ -38,8 +42,8 @@ function createProxy(mode) {
 // });
 
 // Mount the WebSocket endpoint
-app.ws('/major', createProxy("major"));
-app.ws('/minor', createProxy("minor"));
+app.ws('/major', createProxy("cam/realmonitor?channel=1&subtype=1"));
+app.ws('/minor', createProxy("cam/realmonitor?channel=2&subtype=1"));
 
 // Start the server
 const PORT = process.env.PORT || 4001;

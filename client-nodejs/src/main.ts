@@ -7,8 +7,20 @@ const videoCanvas = document.getElementById('visCanvas') as HTMLCanvasElement;
 const resultCanvas = document.getElementById('visCanvas__result') as HTMLCanvasElement;
 const thermResultCanvas = document.getElementById('thermCanvas__result') as HTMLCanvasElement;
 const thermCanvas = document.getElementById('thermCanvas') as HTMLCanvasElement; // Добавляем тепловой canvas
+
 const operationForm = document.forms.namedItem('operation_form') as HTMLFormElement;
 const operateButton = document.getElementById('operateButton') as HTMLButtonElement;
+const checkButton = document.getElementById('checkButton') as HTMLButtonElement;
+
+const xoLabel = document.getElementById("xoLabel") as HTMLLabelElement;
+const yoLabel = document.getElementById("yoLabel") as HTMLLabelElement;
+
+let Xoffset: string = "0";
+let Yoffset: string = "0";
+let scaleFactor = 0.75;
+
+changeOffsetX();
+changeOffsetY();
 
 const landmarksLabel = document.getElementById('landmarkPositions') as HTMLLabelElement;
 const descriptorsLabel = document.getElementById('descriptors') as HTMLLabelElement;
@@ -21,17 +33,16 @@ if (!videoCanvas || !resultCanvas || !thermCanvas || !operationForm || !operateB
 }
 
 // Инициализация размеров canvas
-videoCanvas.width = 640;
-videoCanvas.height = 480;
-// resultCanvas.width = 640;
-// resultCanvas.height = 480;
-// thermResultCanvas.width = 640;
-// thermResultCanvas.height = 480;
-// Предполагаем, что тепловой canvas имеет те же размеры
-if (thermCanvas) {
-    thermCanvas.width = videoCanvas.width;
-    thermCanvas.height = videoCanvas.height;
-}
+videoCanvas.width = 704;
+videoCanvas.height = 576;
+resultCanvas.width = 704;
+resultCanvas.height = 576;
+
+thermCanvas.width = 640;
+thermCanvas.height = 480;
+thermResultCanvas.width = 640;
+thermResultCanvas.height = 480;
+
 
 // --- Инициализация face-api.js ---
 async function loadModels() {
@@ -40,6 +51,7 @@ async function loadModels() {
     await faceapi.nets.tinyFaceDetector.loadFromUri(`/weights`);
     await faceapi.nets.faceLandmark68TinyNet.loadFromUri('/weights');
     await faceapi.nets.faceRecognitionNet.loadFromUri('/weights');
+
     console.log('Модели face-api.js успешно загружены!');
     
   } catch (error) {
@@ -50,278 +62,165 @@ async function loadModels() {
 
 // --- Рисование лица на resultCanvas---
 async function drawFace(detection: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{detection: faceapi.FaceDetection}, faceapi.FaceLandmarks68>>) {
+
+    // const Xoffset = (operationForm.elements.namedItem('xOffset') as HTMLInputElement).value;
+    // const Yoffset = (operationForm.elements.namedItem('yOffset') as HTMLInputElement).value;
+
   if (!videoCanvas || !resultCanvas) {
     console.log('detectFaces: videoCanvas или resultCanvas не определены');
     return;
   }
-  // Копируем изображение с videoCanvas на resultCanvas
+
   const ctx = resultCanvas.getContext('2d');
-  const ctx2 = thermResultCanvas.getContext('2d');
-  if (ctx && ctx2) {
-    // ctx.drawImage(thermCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
-    ctx.drawImage(videoCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
-    ctx2.drawImage(thermCanvas, 0, 0, resultCanvas.width, resultCanvas.height);
+  const thermCtx = thermResultCanvas.getContext('2d');
+  if (!ctx && !thermCtx) {
+    console.log('detectFaces: Не удалось получить контекст 2D для resultCanvas');
+    return;
   }
 
-  if (detection) {
-    // Корректируем координаты под размер resultCanvas
-    const displaySize = { width: resultCanvas.width, height: resultCanvas.height };
-    const resizedDetections = faceapi.resizeResults(detection, displaySize);
+  ctx!.drawImage(videoCanvas, 0, 0, videoCanvas.width, videoCanvas.height);
+  faceapi.draw.drawFaceLandmarks(resultCanvas, detection);
 
-    faceapi.draw.drawFaceLandmarks(resultCanvas, resizedDetections);
-    faceapi.draw.drawFaceLandmarks(thermResultCanvas, resizedDetections);
+  thermCtx!.drawImage(thermCanvas, 0, 0, thermResultCanvas.width, thermResultCanvas.height);
+  faceapi.draw.drawFaceLandmarks(thermResultCanvas, detection);
 
-    const box = resizedDetections.detection.box;
-    const text = [`Лицо обнаружено`];
-    new faceapi.draw.DrawTextField(text, box.bottomLeft).draw(resultCanvas);
+  // Визуализация точек считывания температуры
+  const thermalCtxForDrawing = thermResultCanvas.getContext('2d');
+  if (thermalCtxForDrawing) {
+    const landmarks = detection.landmarks;
+    const noseTip = landmarks.getNose()[3];
+    const leftEyeInnerCorner = landmarks.positions[39];
+    const rightEyeInnerCorner = landmarks.positions[42];
 
-    
+    // Координаты носа
+    const thermalNoseX = noseTip.x;
+    const thermalNoseY = noseTip.y;
+
+    // Координаты левого глаза (внутренний уголок глаза)
+    const thermalLeftEyeX = leftEyeInnerCorner.x;
+    const thermalLeftEyeY = leftEyeInnerCorner.y;
+
+    // Координаты правого глаза (внутренний уголок глаза)
+    const thermalRightEyeX = rightEyeInnerCorner.x;
+    const thermalRightEyeY = rightEyeInnerCorner.y;
+
+    // Рисуем точки
+    thermalCtxForDrawing.fillStyle = 'red'; // Нос - красный
+    thermalCtxForDrawing.beginPath();
+    thermalCtxForDrawing.arc(thermalNoseX, thermalNoseY, 3, 0, 2 * Math.PI);
+    thermalCtxForDrawing.fill();
+
+    thermalCtxForDrawing.fillStyle = 'blue'; // Глаза - синие
+    thermalCtxForDrawing.beginPath();
+    thermalCtxForDrawing.arc(thermalLeftEyeX, thermalLeftEyeY, 3, 0, 2 * Math.PI);
+    thermalCtxForDrawing.fill();
+    thermalCtxForDrawing.beginPath();
+    thermalCtxForDrawing.arc(thermalRightEyeX, thermalRightEyeY, 3, 0, 2 * Math.PI);
+    thermalCtxForDrawing.fill();
   }
 }
 
-// --- Проверка на спуфинг (Liveness Check) ---
-// Глобальные переменные для отслеживания времени обновления изображений
-let lastVideoUpdate = 0;
-let lastThermalUpdate = 0;
-
-// Функция для обновления временных меток
-function updateTimestamp(isVideo: boolean) {
-    if (isVideo) {
-        lastVideoUpdate = Date.now();
-    } else {
-        lastThermalUpdate = Date.now();
-    }
-}
-
-// Экспортируем функцию в глобальный объект для доступа из HTML
-(window as any).updateTimestamp = updateTimestamp;
-
-// Функция проверки синхронизации изображений
-function areImagesInSync(): boolean {
-    const timeDiff = Math.abs(lastVideoUpdate - lastThermalUpdate);
-    const maxAllowedDiff = 500; // Максимально допустимая разница в миллисекундах
-    return timeDiff <= maxAllowedDiff;
-}
-
-async function checkLiveness(detection: faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{detection: faceapi.FaceDetection}, faceapi.FaceLandmarks68>>): Promise<boolean> {
-    const landmarks = detection.landmarks; // Получаем landmarks из объекта детекции
-    const box = detection.detection.box; // Получаем bounding box лица
-    if (!thermCanvas) {
-        console.warn('Тепловой canvas не найден, проверка на спуфинг пропускается.');
-        return true; // Пропускаем проверку, если нет теплового canvas
+async function checkLiveness(
+    detection: faceapi.WithFaceDescriptor<
+      faceapi.WithFaceLandmarks<{ detection: faceapi.FaceDetection }, faceapi.FaceLandmarks68>
+    >
+  ): Promise<boolean> {
+    const thermalCtx = thermCanvas.getContext('2d');
+    if (!thermalCtx) {
+      console.error('Thermal context not found');
+      return false;
     }
 
-    // Проверяем синхронизацию изображений
-    if (!areImagesInSync()) {
-        console.warn('Изображения не синхронизированы, ожидаем синхронизации...');
-        return true; // Пропускаем проверку при рассинхронизации
-    }
+    const { width: thermWidth, height: thermHeight } = thermCanvas;
+    const { width: videoWidth, height: videoHeight } = videoCanvas; // Получаем размеры видео холста
 
-    // Масштабируем и корректируем координаты box под размер теплового изображения
-    // Предполагаем, что тепловизор может быть смещен относительно оптической камеры
-    const offsetX = 110; // Уменьшаем смещение по X
-    const offsetY = 50; // Уменьшаем смещение по Y
+    console.log(`Thermal canvas size: ${thermWidth}x${thermHeight}`);
+    console.log(`Video canvas size: ${videoWidth}x${videoHeight}`);
     
-    // Коэффициенты масштабирования (могут отличаться из-за разных объективов камер)
-    const scaleX = 1.0 * (thermCanvas.width / videoCanvas.width); // Увеличиваем масштаб для лучшего покрытия
-    const scaleY = 1.0 * (thermCanvas.height / videoCanvas.height); // Увеличиваем масштаб для лучшего покрытия
+    const thermalData = thermalCtx.getImageData(0, 0, thermWidth, thermHeight).data;
 
-    console.log('Выполняется проверка на спуфинг...');
-    const ctx = thermCanvas.getContext('2d', { willReadFrequently: true }); // willReadFrequently для производительности
-    if (!ctx) {
-        console.error('Не удалось получить 2D контекст для теплового canvas.');
-        return true; // Пропускаем проверку при ошибке
-    }
+    // Вычисляем коэффициенты масштабирования
+    const scaleX = thermWidth / videoWidth;
+    const scaleY = thermHeight / videoHeight;
 
-    // Получаем данные изображения с теплового canvas
-    // ВАЖНО: Предполагается, что thermCanvas уже содержит актуальное тепловое изображение,
-    // синхронизированное с videoCanvas. Логика получения/обновления теплового изображения
-    // должна быть реализована отдельно.
-    let thermalImageData: ImageData;
-    try {
-        thermalImageData = ctx.getImageData(0, 0, thermCanvas.width, thermCanvas.height);
-    } catch (error) {
-        console.error('Ошибка при получении данных изображения с теплового canvas:', error);
-        // Возможная ошибка безопасности (tainted canvas), если изображение из другого источника
-        return true; // Пропускаем проверку при ошибке
-    }
-    const thermalData = thermalImageData.data; // Массив RGBA
-    const width = thermCanvas.width;
+    // Функция для получения значения пикселя (яркости) в точке (x, y) с учетом масштаба и смещения
+    // Предполагаем, что тепловое изображение в градациях серого, используем R канал
+    function getPixelValue(videoX: number, videoY: number, pointName: string): number { // Добавляем имя точки для логирования
 
-    // Функция для получения средней температуры в области (усреднение канала R)
-    const getAverageTemperature = (points: faceapi.Point[]): number => {
-        let sum = 0;
-        let count = 0;
-        for (const point of points) {
-            const x = Math.round(point.x * scaleX + offsetX);
-            const y = Math.round(point.y * scaleY + offsetY);
-            // Убедимся, что координаты в пределах canvas
-            if (x >= 0 && x < width && y >= 0 && y < thermCanvas.height) {
-                const index = (y * width + x) * 4; // Индекс R компонента
-                sum += thermalData[index]; // Предполагаем, что температура в R канале
-                count++;
-            }
+        // Применяем только масштаб для получения координат на исходном тепловом холсте
+        const thermalX = videoX * scaleX;
+        const thermalY = videoY * scaleY;
+
+        // Ограничиваем координаты границами теплового холста
+        const clampedX = Math.max(0, Math.min(Math.round(thermalX), thermWidth - 1));
+        const clampedY = Math.max(0, Math.min(Math.round(thermalY), thermHeight - 1));
+
+        const index = (clampedY * thermWidth + clampedX) * 4;
+
+        // Логирование координат
+        console.log(`[${pointName}] Video coords: (${videoX.toFixed(2)}, ${videoY.toFixed(2)}) -> Thermal coords (raw): (${thermalX.toFixed(2)}, ${thermalY.toFixed(2)}) -> Clamped: (${clampedX}, ${clampedY}) -> Index: ${index}`);
+
+        // Проверка на всякий случай, хотя после clamp она не должна срабатывать
+        if (index < 0 || index >= thermalData.length) {
+            console.error(`Clamped pixel coordinates (${clampedX}, ${clampedY}) resulted in out-of-bounds index ${index}.`);
+            
+            return 0; 
         }
-        return count > 0 ? sum / count : 0;
-    };
+        // Если координаты были за пределами, выводим предупреждение
+        if (Math.round(thermalX) !== clampedX || Math.round(thermalY) !== clampedY) {
+             console.warn(`Original pixel coordinates (${thermalX}, ${thermalY}) were out of bounds. Used clamped values (${clampedX}, ${clampedY}).`);
+        }
 
-    // Получаем точки бровей и носа
-    const leftEyeBrow = landmarks.getLeftEyeBrow();
-    const rightEyeBrow = landmarks.getRightEyeBrow();
-    const nose = landmarks.getNose();
+        return thermalData[index]; // R канал
+    }
 
-    // Анализируем температуру в ключевых областях
-    const leftEyeBrowTemp = getAverageTemperature(leftEyeBrow);
-    const rightEyeBrowTemp = getAverageTemperature(rightEyeBrow);
-    const noseTemp = getAverageTemperature(nose);
+    // 1. Получаем ключевые точки лица
+    const landmarks = detection.landmarks;
+    const noseTip = landmarks.getNose()[3]; // Кончик носа (точка 34)
+    // Получаем внутренние уголки глаз (ближе к носу)
+    const leftEyeInnerCorner = landmarks.positions[39]; // Внутренний угол левого глаза
+    const rightEyeInnerCorner = landmarks.positions[42]; // Внутренний угол правого глаза
 
-    // Вычисляем разницу температур между бровями и носом
-    const eyebrowTempDiff = Math.abs(leftEyeBrowTemp - rightEyeBrowTemp);
-    const noseToBrowDiff = Math.abs((leftEyeBrowTemp + rightEyeBrowTemp) / 2 - noseTemp);
+    // 2. Получаем значения температуры (яркости) в этих точках, используя координаты с видео холста
+    const tNose = getPixelValue(noseTip.x, noseTip.y, 'Nose');
+    const tLeftEye = getPixelValue(leftEyeInnerCorner.x, leftEyeInnerCorner.y, 'LeftEye');
+    const tRightEye = getPixelValue(rightEyeInnerCorner.x, rightEyeInnerCorner.y, 'RightEye');
 
-    console.log('Анализ температуры лицевых точек:');
-    console.log(`- Температура левой брови: ${leftEyeBrowTemp.toFixed(2)}`);
-    console.log(`- Температура правой брови: ${rightEyeBrowTemp.toFixed(2)}`);
-    console.log(`- Температура носа: ${noseTemp.toFixed(2)}`);
-    console.log(`- Разница температур бровей: ${eyebrowTempDiff.toFixed(2)}`);
-    console.log(`- Разница температур нос-брови: ${noseToBrowDiff.toFixed(2)}`);
+    // 3. Проверяем характерный разброс температур
+    const eyeAvg = (tLeftEye + tRightEye) / 2;
+    // const eyesWarmerThanNose = tNose < eyeAvg; // У живого человека нос обычно холоднее глаз
 
-    // --- Логика анализа текстуры теплового изображения --- 
-    console.log('Данные для расчета размеров лица:');
-    console.log('  - Bounding box (box):', JSON.stringify(box));
-    console.log('  - Ширина thermCanvas (width):', width);
-    console.log('  - Высота thermCanvas:', thermCanvas.height);
+    // Проверка на минимальную разницу (чтобы отсечь почти одинаковые температуры, как у телефона)
+    // const minimalDifferenceThreshold = 3; // Уменьшенный порог минимальной разницы
+    // const hasMinimalDifference = Math.abs(eyeAvg - tNose) > minimalDifferenceThreshold;
+
+    // Проверка на разумную разницу (чтобы отсечь слишком большие, нереалистичные перепады)
+    // const reasonableDifferenceThreshold = 30; // Увеличенный порог максимальной разумной разницы
+    // const reasonableDifference = Math.abs(eyeAvg - tNose) < reasonableDifferenceThreshold;
+
+    // соотношение точек (в большинстве случаев, у человека этот показатель выше 1, когда как у изображения он ниже)
+    const ratio = tNose / eyeAvg;
+
+    // Итоговое решение: отношение глаз к носу должно быть больше 1 И должна быть минимальная разница И разница должна быть разумной
+    // const isLive = (eyesWarmerThanNose && hasMinimalDifference && reasonableDifference) || ratio > 1;
     
-    // Применяем масштабирование и смещение
-    const faceX = Math.max(0, Math.round(box.x * scaleX + offsetX));
-    const faceY = Math.max(0, Math.round(box.y * scaleY + offsetY));
-    const faceWidth = Math.min(width - faceX, Math.round(box.width * scaleX));
-    const faceHeight = Math.min(thermCanvas.height - faceY, Math.round(box.height * scaleY));
+    // const isLive = ratio > 1 && hasMinimalDifference && reasonableDifference; 
+    const isLive = ratio >= 1; 
 
-    if (faceWidth <= 0 || faceHeight <= 0) {
-        console.warn('Некорректные размеры области лица для анализа текстуры.');
-        return true; // Пропускаем проверку
-    }
-
-    // Разделяем область лица на зоны для анализа с увеличенным размером
-    const zoneSize = Math.floor(Math.min(faceWidth, faceHeight) / 2); // Увеличиваем размер зоны анализа для более широкого охвата
-    const zones: number[][] = [];
-    const zoneStats: Array<{mean: number; stdDev: number}> = [];
-
-    // Собираем данные по зонам
-    for (let zoneY = 0; zoneY < 3; zoneY++) {
-        for (let zoneX = 0; zoneX < 3; zoneX++) {
-            const zonePixels: number[] = [];
-            const startX = faceX + zoneX * zoneSize;
-            const startY = faceY + zoneY * zoneSize;
-
-            // Собираем пиксели для текущей зоны
-            for (let y = startY; y < Math.min(startY + zoneSize, faceY + faceHeight); y++) {
-                for (let x = startX; x < Math.min(startX + zoneSize, faceX + faceWidth); x++) {
-                    const index = (y * width + x) * 4;
-                    zonePixels.push(thermalData[index]); // Используем R канал
-                }
-            }
-            zones.push(zonePixels);
-
-            // Вычисляем статистику для зоны
-            if (zonePixels.length > 0) {
-                const mean = zonePixels.reduce((a, b) => a + b, 0) / zonePixels.length;
-                const variance = zonePixels.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / zonePixels.length;
-                const stdDev = Math.sqrt(variance);
-                zoneStats.push({ mean, stdDev });
-            }
-        }
-    }
-
-    if (zones.length === 0 || zoneStats.length === 0) {
-        console.warn('Не удалось проанализировать зоны лица.');
-        return true; // Пропускаем проверку при ошибке
-    }
-
-    // Анализ распределения тепла
-    const zoneMeans = zoneStats.map(stat => stat.mean);
-    const zoneStdDevs = zoneStats.map(stat => stat.stdDev);
-
-    // Вычисляем градиент температуры между зонами
-    const maxTempDiff = Math.max(...zoneMeans) - Math.min(...zoneMeans);
-    const avgStdDev = zoneStdDevs.reduce((a, b) => a + b, 0) / zoneStdDevs.length;
-
-    // Проверяем равномерность распределения тепла (характерно для экрана)
-    const tempVariation = Math.max(...zoneMeans) / Math.min(...zoneMeans);
-    const isUniform = tempVariation < 1.2; // Если разница между макс и мин температурой менее 20%
-
-    console.log(`Анализ тепловой карты:\n` +
-                `- Средняя вариация текстуры: ${avgStdDev.toFixed(2)}\n` +
-                `- Максимальная разница температур: ${maxTempDiff.toFixed(2)}\n` +
-                `- Коэффициент равномерности: ${tempVariation.toFixed(2)}`);
-
-    // Визуализация тепловой карты
-    const heatmapCtx = thermResultCanvas.getContext('2d');
-    if (heatmapCtx) {
-        // Рисуем сетку зон анализа
-        heatmapCtx.strokeStyle = 'red';
-        heatmapCtx.lineWidth = 1;
-
-        for (let i = 0; i <= 3; i++) {
-            // Вертикальные линии
-            const x = faceX + i * zoneSize;
-            heatmapCtx.beginPath();
-            heatmapCtx.moveTo(x, faceY);
-            heatmapCtx.lineTo(x, faceY + 3 * zoneSize);
-            heatmapCtx.stroke();
-
-            // Горизонтальные линии
-            const y = faceY + i * zoneSize;
-            heatmapCtx.beginPath();
-            heatmapCtx.moveTo(faceX, y);
-            heatmapCtx.lineTo(faceX + 3 * zoneSize, y);
-            heatmapCtx.stroke();
-        }
-
-        // Добавляем информацию о анализе
-        heatmapCtx.fillStyle = 'white';
-        heatmapCtx.font = '14px Arial';
-        heatmapCtx.fillText(`Вариация: ${tempVariation.toFixed(2)}`, faceX, faceY - 5);
-    }
-
-    // --- Правила проверки ---
-    // 1. Проверка на равномерность распределения тепла (характерно для экрана)
-    // 2. Проверка на наличие температурных градиентов (характерно для живого лица)
-    // 3. Проверка на текстуру поверхности
-    // 4. Проверка разницы температур между бровями
-    // 5. Проверка разницы температур между бровями и носом
-    const textureThreshold = 1.2; // Уменьшаем порог текстуры еще больше
-    const tempDiffThreshold = 3.0; // Уменьшаем требуемую разницу температур
-    const eyebrowDiffThreshold = 20.0; // Еще больше увеличиваем допустимую разницу температур между бровями
-    const noseBrowDiffThreshold = 1.5; // Уменьшаем требуемую разницу температур между носом и бровями
-
-    const isLive = !isUniform && // Неравномерное распределение тепла
-                   maxTempDiff > tempDiffThreshold && // Есть значительные градиенты температуры
-                   avgStdDev > textureThreshold && // Есть текстура поверхности
-                   eyebrowTempDiff < eyebrowDiffThreshold && // Температура бровей примерно одинаковая
-                   noseToBrowDiff > noseBrowDiffThreshold; // Значительная разница между носом и бровями
-
-    if (isLive) {
-        console.log('Проверка на спуфинг: пройдена (текстура соответствует живому лицу).');
-    } else {
-        console.warn(`Проверка на спуфинг: НЕ пройдена! Причины:\n` +
-            `- Текстура: ${avgStdDev.toFixed(2)} <= ${textureThreshold}\n` +
-            `- Градиент температуры: ${maxTempDiff.toFixed(2)} <= ${tempDiffThreshold}\n` +
-            `- Разница температур бровей: ${eyebrowTempDiff.toFixed(2)} >= ${eyebrowDiffThreshold}\n` +
-            `- Разница нос-брови: ${noseToBrowDiff.toFixed(2)} <= ${noseBrowDiffThreshold}\n` +
-            `- Равномерность распределения: ${isUniform ? 'да' : 'нет'}`);
-    }
+    console.log('Thermal points:', { tNose, tLeftEye, tRightEye, eyeAvg });
+    console.log('Conditions:', { ratio });
+    console.log('-> isLive:', isLive);
 
     return isLive;
 }
+  
 
 // --- Обработка ввода ---
-async function perfomInput() {
+async function perfomInput(senddata: boolean) {
     const operationType = (operationForm.elements.namedItem('operation_type') as HTMLSelectElement).value;
     const username = (operationForm.elements.namedItem('username') as HTMLInputElement).value;
 
-    if (!username) { // Проверяем имя только при регистрации
+    if (!username && senddata) { // Проверяем имя только при регистрации
         alert('Пожалуйста, введите имя пользователя для регистрации.');
         return;
     }
@@ -335,12 +234,12 @@ async function perfomInput() {
         .withFaceDescriptor();
 
     if (!detection) {
-        alert('Лица не найдены на видео. Попробуйте снова.');
+        alert('Лица не найдены на видео или происходит попытка спуфинга. Попробуйте снова.');
         return;
     }
 
     // Рисуем лицо
-    drawFace(detection);
+    await drawFace(detection);
 
     // --- Проверка на спуфинг --- 
     const isLive = await checkLiveness(detection); // Передаем весь объект detection
@@ -360,29 +259,44 @@ async function perfomInput() {
     landmarksLabel.textContent = "Позиции лицевых точек: " + JSON.stringify(data.positions);
     descriptorsLabel.textContent = "Дескрипторы: " + JSON.stringify(data.descriptors, null, 2);
 
-    
-    if (operationType === 'registration') {
-        console.log("Регистрация нового лица");
-        // Регистрация
-        const array = Array.from(data.descriptors as Float32Array);
-        await RegVector({ user_name: username.trim(), face_vector: array});
-        resultLabel.textContent = "Регистрация завершена успешно.";
-    } else if (operationType === 'identify') {
-        // Идентификация
-        console.log("Идентификация лица");
-        const array = Array.from(data.descriptors as Float32Array);
-        const result = await VerifyVector({ user_name: username.trim(), face_vector: array});
-        if (result) {
-            resultLabel.textContent = `Вы успешно вошли как "${username}"`;
-        } else {
-            resultLabel.textContent = 'Неверный вектор лица.';
+    if (senddata) {
+        if (operationType === 'registration') {
+            console.log("Регистрация нового лица");
+            // Регистрация
+            const array = Array.from(data.descriptors as Float32Array);
+            await RegVector({ user_name: username.trim(), face_vector: array});
+            resultLabel.textContent = "Регистрация завершена успешно.";
+        } else if (operationType === 'identify') {
+            // Идентификация
+            console.log("Идентификация лица");
+            const array = Array.from(data.descriptors as Float32Array);
+            const result = await VerifyVector({ user_name: username.trim(), face_vector: array});
+            if (result) {
+                resultLabel.textContent = `Вы успешно вошли как "${username}"`;
+            } else {
+                resultLabel.textContent = 'Неверный вектор лица.';
+            }
         }
     }
+}
+
+function changeOffsetX() {
+    Xoffset = (operationForm.elements.namedItem('xOffset') as HTMLInputElement).value;
+    xoLabel.textContent = Xoffset;
+}
+
+function changeOffsetY() {
+    Yoffset = (operationForm.elements.namedItem('yOffset') as HTMLInputElement).value;
+    yoLabel.textContent = Yoffset;
 }
 
 // Основная программа
 (async () => {
     await loadModels();
     // --- Обработка действий пользователя (Регистрация/Идентификация) ---
-    operateButton?.addEventListener('click', perfomInput);
+    operateButton?.addEventListener('click', () => {perfomInput(true)});
+    checkButton?.addEventListener('click', () => {perfomInput(false)});
+
+    (operationForm.elements.namedItem('xOffset') as HTMLInputElement).addEventListener('change', changeOffsetX);
+    (operationForm.elements.namedItem('yOffset') as HTMLInputElement).addEventListener('change', changeOffsetY);
 })();

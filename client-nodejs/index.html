@@ -15,8 +15,19 @@
     /* Задаём фиксированный размер каждого canvas */
     .canvas-row canvas {
       width: 640px;
-      height: 360px;
+      /* height: 360px; */
+      height: 480px;
       border: 1px solid #ccc;
+    }
+
+    .optical {
+      width: 704px !important;
+      height: 576px !important;
+    }
+
+    .thermal {
+      width: 640px !important;
+      height: 480px !important;
     }
 
     .canvas__label {
@@ -45,9 +56,9 @@
   <h1>Живой стрим</h1>
   <div class="canvas-row">
     <!-- Видимый поток -->
-    <canvas id="visCanvas" width="640" height="360"></canvas>
+    <canvas class="optical" id="visCanvas" width="704" height="576"></canvas>
     <!-- Тепловой поток -->
-    <canvas id="thermCanvas" width="640" height="360"></canvas>
+    <canvas class="thermal" id="thermCanvas" width="640" height="480"></canvas>
   </div>
   <div class="padding canvas-row">
     <form name="operation_form">
@@ -56,13 +67,17 @@
         <option value="registration">Регистрация</option>
       </select>
       <input name="username" type="text" placeholder="имя пользователя" />
+      <p>Донастройка</p>
+      <p>X: <input type="range" min="-100" max="100" value="15" name="xOffset"><span id="xoLabel"></span></p>
+      <p>Y: <input type="range" min="-100" max="100" value="23" name="yOffset"><span id="yoLabel"></span></p>
     </form>
-    <button id="operateButton">Вперед</button>
+    <button id="operateButton">Вперед (отправка данных)</button>
+    <button id="checkButton">Вперед (просто проверка)</button>
   </div>
   <h1>Результат лицевых точек</h1>
   <div class="canvas-row">
-    <canvas id="visCanvas__result" width="640" height="360"></canvas>
-    <canvas id="thermCanvas__result" width="640" height="360"></canvas>
+    <canvas class="optical" id="visCanvas__result" width="704" height="576"></canvas>
+    <canvas class="thermal" id="thermCanvas__result" width="640" height="480"></canvas>
     <div class="canvas__label">
       <p id="landmarkPositions"></p>
     </div>

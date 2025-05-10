@@ -8,7 +8,7 @@ type Detection = faceapi.WithFaceDescriptor<faceapi.WithFaceLandmarks<{detection
 const videoCanvas = document.getElementById('visCanvas') as HTMLCanvasElement;
 const resultCanvas = document.getElementById('visCanvas__result') as HTMLCanvasElement;
 const thermResultCanvas = document.getElementById('thermCanvas__result') as HTMLCanvasElement;
-const thermCanvas = document.getElementById('thermCanvas') as HTMLCanvasElement; // Добавляем тепловой canvas
+const thermCanvas = document.getElementById('thermCanvas') as HTMLCanvasElement;
 
 const operationForm = document.forms.namedItem('operation_form') as HTMLFormElement;
 
@@ -82,7 +82,7 @@ async function drawFace() {
   }
 }
 
-async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y: number, clr: number}, rightEye: {x: number, y: number, clr: number}, nose: {x: number, y: number, clr: number}, eyeBrows: {left: number, right: number}}) {
+async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y: number, clr: number}, rightEye: {x: number, y: number, clr: number}, nose: {x: number, y: number, clr: number}, eyeBrows: {left: {x: number, y: number, clr: number}, right: {x: number, y: number, clr: number}}}) {
     if (detection) {
         const resizedDetections = faceapi.resizeResults(detection, { width: resultCanvas.width, height: resultCanvas.height });
         const resizedDetections2 = faceapi.resizeResults(detection, {width: thermResultCanvas.width, height: thermResultCanvas.height});
@@ -95,12 +95,7 @@ async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y
         const noseTip = landmarks.getNose()[2];
         const leftEyeInnerCorner = landmarks.positions[39];
         const rightEyeInnerCorner = landmarks.positions[42];
-        const rightEyeBrow = landmarks.getRightEyeBrow();
-        const leftEyeBrow = landmarks.getLeftEyeBrow();
-
-        const thermalLeftEyeBrow = leftEyeBrow.map((point) => ({x: point.x, y: point.y}));
-        const thermalRightEyeBrow = rightEyeBrow.map((point) => ({x: point.x, y: point.y}));
-
+        
         // Координаты носа
         const thermalNoseX = noseTip.x;
         const thermalNoseY = noseTip.y;
@@ -134,26 +129,35 @@ async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y
         ctx.arc(thermalRightEyeX, thermalRightEyeY, 3, 0, 2 * Math.PI);
         ctx.fill();
 
-        thermalLeftEyeBrow.forEach((point) => {
-            ctx.fillStyle = 'green' // Бровь - зеленая
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
-            ctx.fill(); 
-        });
+        ctx.fillStyle = 'green'; // Бровь - зеленый
+        ctx.beginPath();
+        ctx.arc(data.eyeBrows.left.x, data.eyeBrows.left.y, 3, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(data.eyeBrows.right.x, data.eyeBrows.right.y, 3, 0, 2 * Math.PI);
+        ctx.fill();
 
-        thermalRightEyeBrow.forEach((point) => {
-            ctx.fillStyle = 'green' // Бровь - зеленая
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
-            ctx.fill(); 
-        });
+        // thermalLeftEyeBrow.forEach((point) => {
+        //     ctx.fillStyle = 'green' // Бровь - зеленая
+        //     ctx.beginPath();
+        //     ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
+        //     ctx.fill(); 
+        // });
+
+        // thermalRightEyeBrow.forEach((point) => {
+        //     ctx.fillStyle = 'green' // Бровь - зеленая
+        //     ctx.beginPath();
+        //     ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
+        //     ctx.fill(); 
+        // });
         
+        ctx.fillStyle = 'black';
         ctx.fillText(data.leftEye.clr.toString(), data.leftEye.x, data.leftEye.y+15);
         ctx.fillText(data.rightEye.clr.toString(), data.rightEye.x, data.rightEye.y+15);
-        ctx.fillText(data.nose.clr.toString(), data.nose.x-15, data.nose.y);
-        ctx.fillText(data.eyeBrows.left.toString(), thermalLeftEyeBrow[1].x, thermalLeftEyeBrow[1].y-15);
-        ctx.fillText(data.eyeBrows.right.toString(), thermalRightEyeBrow[1].x, thermalRightEyeBrow[1].y-15);
+        ctx.fillText(data.nose.clr.toString(), data.nose.x-30, data.nose.y);
 
+        ctx.fillText(data.eyeBrows.right.clr.toString(), data.eyeBrows.right.x, data.eyeBrows.right.y-15);
+        ctx.fillText(data.eyeBrows.left.clr.toString(), data.eyeBrows.left.x, data.eyeBrows.left.y-15);
     }
 }
 
@@ -197,17 +201,11 @@ async function checkLiveness(detection: Detection): Promise<boolean> {
     // Предполагаем, что тепловое изображение в градациях серого, используем R канал
     const getPixelValue = async (videoX: number, videoY: number): Promise<number> => {
 
-        // const x = Math.round(videoX + (704-640)/1.5);
-        // const y = Math.round(videoY + (576-480)/1.5);
-        
         const x = Math.round(videoX);
         const y = Math.round(videoY);
         
         
         const index = ((y * (width * 4)) + (x * 4));
-        // console.log({X: videoX, Y: videoY});
-        
-        // console.log({R: thermalData[index], G: thermalData[index+1], B: thermalData[index+2]});
         
         return thermalData[index];
     }
@@ -217,18 +215,37 @@ async function checkLiveness(detection: Detection): Promise<boolean> {
     const nosePoint = landmarks.getNose()[2];
     const leftEyeCorner = landmarks.positions[39];
     const rightEyeCorner = landmarks.positions[42];
+    
+    // Функция нахождения самой холодной точки (в частности используется для бровей)
+    const getMin = async (points: faceapi.Point[]): Promise<{x: number, y: number, clr: number}> => {
+        let minColor = 99999999;
+        let result: {x: number, y: number, clr: number} = {x:0, y:0, clr:0}
 
-    const leftEyeBrowTemp = await getAverageTemperature(landmarks.getLeftEyeBrow());
-    const rightEyeBrowTemp = await getAverageTemperature(landmarks.getRightEyeBrow());
+        await (points.forEach(async (p) => {
+            const curColor = await getPixelValue(p.x, p.y);
+
+            if (curColor < minColor) {
+                minColor = curColor;
+                result = {x: p.x, y: p.y, clr: curColor};
+            }
+        }))
+
+        return result
+    }
 
     const tNose = await getPixelValue(nosePoint.x, nosePoint.y);
     const tLeftEye = await getPixelValue(leftEyeCorner.x, leftEyeCorner.y);
     const tRightEye = await getPixelValue(rightEyeCorner.x, rightEyeCorner.y);
 
-    await drawLandmarks(detection, {leftEye: {x: leftEyeCorner.x, y: leftEyeCorner.y, clr: tLeftEye}, rightEye: {x: rightEyeCorner.x, y: rightEyeCorner.y, clr: tRightEye}, nose: {x: nosePoint.x, y: nosePoint.y, clr: tNose}, eyeBrows: {right: rightEyeBrowTemp, left: leftEyeBrowTemp}});
+    const tMinLeftEyeBrow = await getMin(landmarks.getLeftEyeBrow());
+    const tMinRightEyeBrow = await getMin(landmarks.getRightEyeBrow());
+
+    // await drawLandmarks(detection, {leftEye: {x: leftEyeCorner.x, y: leftEyeCorner.y, clr: tLeftEye}, rightEye: {x: rightEyeCorner.x, y: rightEyeCorner.y, clr: tRightEye}, nose: {x: nosePoint.x, y: nosePoint.y, clr: tNose}, eyeBrows: {right: rightEyeBrowTemp, left: leftEyeBrowTemp}});
+    await drawLandmarks(detection, {leftEye: {x: leftEyeCorner.x, y: leftEyeCorner.y, clr: tLeftEye}, rightEye: {x: rightEyeCorner.x, y: rightEyeCorner.y, clr: tRightEye}, nose: {x: nosePoint.x, y: nosePoint.y, clr: tNose}, eyeBrows: {right: tMinRightEyeBrow, left: tMinLeftEyeBrow}});
 
     const tAverageEyes = (tLeftEye + tRightEye) / 2;
-    
+    const tAverageBrows = (tMinLeftEyeBrow.clr + tMinRightEyeBrow.clr) / 2;
+
     // Условия
 
     // Глаза должны быть теплее носа
@@ -236,10 +253,14 @@ async function checkLiveness(detection: Detection): Promise<boolean> {
 
     // Разница между носом и глазами должны быть более 10
     const tDifference = (tAverageEyes - tNose) > 10;
-
-    console.log({eyesWarmer, tDifference});
+    console.log("Разница между носом и глазом: ",tAverageEyes - tNose);
     
-    return tDifference && eyesWarmer;
+    // Брови должны быть холоднее глаз
+    const browsColder = tAverageBrows < tAverageEyes;
+
+    console.log({eyesWarmer, tDifference, browsColder});
+    
+    return tDifference && eyesWarmer && browsColder;
 }
   
 

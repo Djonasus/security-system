@@ -9,21 +9,16 @@
     .canvas-row {
       display: flex;
       gap: 10px; /* отступ между холстами */
-      /* justify-content: center; по центру страницы */
-      /* align-items: center;     по вертикали одного уровня */
     }
     /* Задаём фиксированный размер каждого canvas */
     .canvas-row canvas {
       width: 640px;
-      /* height: 360px; */
       height: 480px;
       border: 1px solid #ccc;
     }
 
     .canvas__label {
       width: 640px;
-      /* height: 360px; */
-      /* border: 1px solid #ccc; */
     }
 
     .optical {
@@ -36,6 +31,15 @@
       height: 480px !important;
     }
 
+    /* .optical {
+      width: 1920px / 2 !important;
+      height: 1080px / 2 !important;
+    }
+
+    .thermal {
+      width: 1280px / 2 !important;
+      height: 960px / 2 !important;
+    } */
 
     .canvas__label p {
       text-wrap: wrap;
@@ -68,17 +72,14 @@
         <option value="registration">Регистрация</option>
       </select>
       <input name="username" type="text" placeholder="имя пользователя" />
-      <!-- <p>Донастройка</p>
-      <p>X: <input type="range" min="-100" max="100" value="15" name="xOffset"><span id="xoLabel"></span></p>
-      <p>Y: <input type="range" min="-100" max="100" value="23" name="yOffset"><span id="yoLabel"></span></p> -->
     </form>
     <button id="operateButton">Вперед (отправка данных)</button>
     <button id="justCheckButton">Вперед (просто проверка)</button>
   </div>
   <h1>Результат лицевых точек</h1>
   <div class="canvas-row">
-    <canvas class="optical" id="visCanvas__result" width="704" height="576"></canvas>
-    <canvas class="thermal" id="thermCanvas__result" width="640" height="480"></canvas>
+    <canvas class="optical" id="visCanvas__result" width="1920" height="1080"></canvas>
+    <canvas class="thermal" id="thermCanvas__result" width="1280" height="960"></canvas>
     <div class="canvas__label">
       <p id="landmarkPositions"></p>
     </div>
@@ -94,20 +95,20 @@
       url: 'ws://localhost:4001/major', // URL для основного потока
       canvas: document.getElementById('visCanvas'),
       disableGl: true,
-      onRenderFrame: () => {
+      // onRenderFrame: () => {
         // Обновляем временную метку для видео
-        window.updateTimestamp?.(true);
-      }
+        // window.updateTimestamp?.(true);
+      // }
     });
 
     loadPlayer({
       url: 'ws://localhost:4001/minor', // URL для теплового потока
       canvas: document.getElementById('thermCanvas'),
       disableGl: true,
-      onRenderFrame: () => {
+      // onRenderFrame: () => {
         // Обновляем временную метку для теплового потока
-        window.updateTimestamp?.(false);
-      }
+        // window.updateTimestamp?.(false);
+      // }
     });
   </script>
 </body>

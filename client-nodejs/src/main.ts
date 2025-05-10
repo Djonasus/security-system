@@ -26,13 +26,24 @@ if (!videoCanvas || !resultCanvas || !thermCanvas || !operationForm || !operateB
 }
 
 // Инициализация размеров canvas
-videoCanvas.width = 704;
-videoCanvas.height = 576;
-thermResultCanvas.width = 704;
-thermResultCanvas.height = 576;
 
-thermCanvas.width = 640;
-thermCanvas.height = 480;
+const opticalWidth = 704
+// const opticalWidth = 1920;
+const opticalHeight = 576;
+// const opticalHeight = 1080;
+
+const thermalWidth = 640;
+// const thermalWidth = 1280
+const thermalHeight = 480;
+// const thermalHeight = 960
+
+videoCanvas.width = opticalWidth;
+videoCanvas.height = opticalHeight;
+thermResultCanvas.width = opticalWidth;
+thermResultCanvas.height = opticalHeight;
+
+thermCanvas.width = thermalWidth;
+thermCanvas.height = thermalHeight;
 
 // --- Инициализация face-api.js ---
 async function loadModels() {
@@ -67,11 +78,11 @@ async function drawFace() {
 
     // Размещаем тепло-карту согласно оптическому захвату
     // Значения были найдены эмперически, что называется "на глаз"
-    ctx2.drawImage(thermCanvas, (704-640)/1.5, (576-480)/1.5, thermCanvas.width * 2.2, thermCanvas.height * 2.3);
+    ctx2.drawImage(thermCanvas, (opticalWidth-thermalWidth)/1.5, (opticalHeight-thermalHeight)/1.5, thermCanvas.width * 2.2, thermCanvas.height * 2.3);
   }
 }
 
-async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y: number, clr: number}}) {
+async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y: number, clr: number}, rightEye: {x: number, y: number, clr: number}, nose: {x: number, y: number, clr: number}, eyeBrows: {left: number, right: number}}) {
     if (detection) {
         const resizedDetections = faceapi.resizeResults(detection, { width: resultCanvas.width, height: resultCanvas.height });
         const resizedDetections2 = faceapi.resizeResults(detection, {width: thermResultCanvas.width, height: thermResultCanvas.height});
@@ -102,7 +113,8 @@ async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y
         const thermalRightEyeX = rightEyeInnerCorner.x;
         const thermalRightEyeY = rightEyeInnerCorner.y;
 
-        const ctx = thermResultCanvas.getContext('2d', { willReadFrequently: true });
+        // const ctx = thermResultCanvas.getContext('2d', { willReadFrequently: true });
+        const ctx = thermResultCanvas.getContext('2d');
 
         if (!ctx) {
             return;
@@ -135,10 +147,13 @@ async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y
             ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
             ctx.fill(); 
         });
-
-        console.log(data);
         
         ctx.fillText(data.leftEye.clr.toString(), data.leftEye.x, data.leftEye.y+15);
+        ctx.fillText(data.rightEye.clr.toString(), data.rightEye.x, data.rightEye.y+15);
+        ctx.fillText(data.nose.clr.toString(), data.nose.x-15, data.nose.y);
+        ctx.fillText(data.eyeBrows.left.toString(), thermalLeftEyeBrow[1].x, thermalLeftEyeBrow[1].y-15);
+        ctx.fillText(data.eyeBrows.right.toString(), thermalRightEyeBrow[1].x, thermalRightEyeBrow[1].y-15);
+
     }
 }
 
@@ -149,7 +164,6 @@ async function checkLiveness(detection: Detection): Promise<boolean> {
     const landmarks = resizedDetections.landmarks;
 
     // Получаем данные с теплового canvas
-    // const ctx = thermResultCanvas.getContext('2d', { willReadFrequently: true });
     const ctx = thermResultCanvas.getContext('2d');
     let thermalImageData: ImageData;
 
@@ -211,18 +225,26 @@ async function checkLiveness(detection: Detection): Promise<boolean> {
     const tLeftEye = await getPixelValue(leftEyeCorner.x, leftEyeCorner.y);
     const tRightEye = await getPixelValue(rightEyeCorner.x, rightEyeCorner.y);
 
-    await drawLandmarks(detection, {leftEye: {x: leftEyeCorner.x, y: leftEyeCorner.y, clr: tLeftEye}});
+    await drawLandmarks(detection, {leftEye: {x: leftEyeCorner.x, y: leftEyeCorner.y, clr: tLeftEye}, rightEye: {x: rightEyeCorner.x, y: rightEyeCorner.y, clr: tRightEye}, nose: {x: nosePoint.x, y: nosePoint.y, clr: tNose}, eyeBrows: {right: rightEyeBrowTemp, left: leftEyeBrowTemp}});
 
-    console.log({leftEyeBrowTemp, rightEyeBrowTemp, tNose, tLeftEye, tRightEye});
+    const tAverageEyes = (tLeftEye + tRightEye) / 2;
     
+    // Условия
 
-    return true
+    // Глаза должны быть теплее носа
+    const eyesWarmer = tAverageEyes > tNose;
+
+    // Разница между носом и глазами должны быть более 10
+    const tDifference = (tAverageEyes - tNose) > 10;
+
+    console.log({eyesWarmer, tDifference});
+    
+    return tDifference && eyesWarmer;
 }
   
 
 // --- Обработка ввода ---
 async function perfomInput(justLiveCheck: boolean = true) {
-    console.log("ABOBA");
     
     const operationType = (operationForm.elements.namedItem('operation_type') as HTMLSelectElement).value;
     const username = (operationForm.elements.namedItem('username') as HTMLInputElement).value;
@@ -247,7 +269,6 @@ async function perfomInput(justLiveCheck: boolean = true) {
 
     // Рисуем лицо
     drawFace();
-    // drawLandmarks(detection);
 
     // --- Проверка на спуфинг --- 
     const isLive = await checkLiveness(detection); // Передаем весь объект detection
@@ -256,8 +277,6 @@ async function perfomInput(justLiveCheck: boolean = true) {
         landmarksLabel.textContent = "";
         descriptorsLabel.textContent = "";
         return;
-    } else {
-        // drawLandmarks(detection);
     }
     // --- Конец проверки на спуфинг ---
 

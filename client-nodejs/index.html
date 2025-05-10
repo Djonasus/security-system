@@ -20,6 +20,12 @@
       border: 1px solid #ccc;
     }
 
+    .canvas__label {
+      width: 640px;
+      /* height: 360px; */
+      /* border: 1px solid #ccc; */
+    }
+
     .optical {
       width: 704px !important;
       height: 576px !important;
@@ -30,11 +36,6 @@
       height: 480px !important;
     }
 
-    .canvas__label {
-      width: 640px;
-      /* height: 360px; */
-      /* border: 1px solid #ccc; */
-    }
 
     .canvas__label p {
       text-wrap: wrap;
@@ -67,12 +68,12 @@
         <option value="registration">Регистрация</option>
       </select>
       <input name="username" type="text" placeholder="имя пользователя" />
-      <p>Донастройка</p>
+      <!-- <p>Донастройка</p>
       <p>X: <input type="range" min="-100" max="100" value="15" name="xOffset"><span id="xoLabel"></span></p>
-      <p>Y: <input type="range" min="-100" max="100" value="23" name="yOffset"><span id="yoLabel"></span></p>
+      <p>Y: <input type="range" min="-100" max="100" value="23" name="yOffset"><span id="yoLabel"></span></p> -->
     </form>
     <button id="operateButton">Вперед (отправка данных)</button>
-    <button id="checkButton">Вперед (просто проверка)</button>
+    <button id="justCheckButton">Вперед (просто проверка)</button>
   </div>
   <h1>Результат лицевых точек</h1>
   <div class="canvas-row">

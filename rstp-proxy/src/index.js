@@ -34,13 +34,6 @@ function createProxy(mode) {
     })
 }
 
-// Create a WebSocket handler for the RTSP->WS proxy
-// const streamHandler = proxy({
-//   url: RTSP_URL,
-//   transport: 'tcp',  // Use TCP for more reliable delivery (optional)
-//   verbose: true,     // Enables logging
-// });
-
 // Mount the WebSocket endpoint
 app.ws('/major', createProxy("cam/realmonitor?channel=1&subtype=1"));
 app.ws('/minor', createProxy("cam/realmonitor?channel=2&subtype=1"));

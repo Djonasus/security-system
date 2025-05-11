@@ -136,20 +136,6 @@ async function drawLandmarks(detection: Detection, data: {leftEye: {x: number, y
         ctx.beginPath();
         ctx.arc(data.eyeBrows.right.x, data.eyeBrows.right.y, 3, 0, 2 * Math.PI);
         ctx.fill();
-
-        // thermalLeftEyeBrow.forEach((point) => {
-        //     ctx.fillStyle = 'green' // Бровь - зеленая
-        //     ctx.beginPath();
-        //     ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
-        //     ctx.fill(); 
-        // });
-
-        // thermalRightEyeBrow.forEach((point) => {
-        //     ctx.fillStyle = 'green' // Бровь - зеленая
-        //     ctx.beginPath();
-        //     ctx.arc(point.x, point.y, 3,0,2 * Math.PI);
-        //     ctx.fill(); 
-        // });
         
         ctx.fillStyle = 'black';
         ctx.fillText(data.leftEye.clr.toString(), data.leftEye.x, data.leftEye.y+15);
